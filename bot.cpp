@@ -47,6 +47,7 @@
 #ifdef WIN32
 #include <wtypes.h>
 #endif
+#include "bot_script_lua.h"
 
 //#include "list.h"
 extern List<char*> commanders;
@@ -140,6 +141,8 @@ msg_com_struct msg_com[MSG_MAX];
 
 // and 64 empty msg's, to be filled with messages to intercept
 char msg_msg[64][MSG_MAX];
+
+ScriptType script_type;
 
 #define PLAYER_SEARCH_RADIUS 50.0f
 //#define FLF_PLAYER_SEARCH_RADIUS 60.0f
@@ -1717,6 +1720,11 @@ void script(const char* sz) {
 			std::fprintf(fp, "msg (%s)\n", sz);
 			std::fclose(fp);
 		}
+	}
+
+	if (script_type == ScriptType::LUA) {
+		BotScriptLua::OnMessage(sz);
+		return;
 	}
 
 	for (int current_msg = 0; current_msg < MSG_MAX; current_msg++) {

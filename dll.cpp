@@ -46,6 +46,8 @@
 
 #include "botcam.h"
 
+#include "bot_script_lua.h"
+
 constexpr unsigned char VER_MAJOR = 1;
 constexpr unsigned char VER_MINOR = 0;
 
@@ -128,6 +130,7 @@ extern int num_areas;
 
 extern msg_com_struct msg_com[MSG_MAX];
 extern char msg_msg[64][MSG_MAX];
+extern ScriptType script_type;
 
 // const static double double_pi = 3.1415926535897932384626433832795;
 
@@ -3087,717 +3090,43 @@ void StartFrame() { // v7 last frame timing
 			}
 			msg_com[i].next = nullptr; // make sure it dont crash..gr
 		}                             // check if mapname_bot.cfg file exists...
-		std::strcpy(mapname, STRING(gpGlobals->mapname));
-		std::strcat(mapname, "_fb.cfg");
-		UTIL_BuildFileName(filename, 255, "scripts", mapname);
-		std::FILE* bfp = std::fopen(filename, "r");
-		if (bfp != nullptr && mod_id == TFC_DLL) {
-			script_loaded = true;
-			char msg[293];
-			snprintf(msg, sizeof(msg),"\nExecuting FoXBot TFC script file:%s\n\n", filename);
-			ALERT(at_console, msg);
-			int ch = fgetc(bfp);
-			int i1; // Not wanted? [APG]RoboCop[CL]
-			char buffer[14097];
-			for (i1 = 0; i1 < 14096 && std::feof(bfp) == 0; i1++) {
-				buffer[i1] = static_cast<char>(ch);
-				if (buffer[i1] == '\t')
-					buffer[i1] = ' ';
-				ch = fgetc(bfp);
-			}
-			buffer[i1] = '\0';        // we've read it into buffer, now we need to check the syntax..
-			int braces = 0;           // check for an even number of braces i.e. {..}
-			bool commentline = false; // used to ignore comment lines
-			int start = 0;            // used to check if were in a start section or not
-			int havestart = 0;
-			int msgsection = 0; // used to check if were in a message section section or not
-			int ifsec = 0;      // used to check if were in an if statement
-			char* buf = buffer;
-			bool random_shit_error = false;
-			for (i1 = 0; i1 < 14096 && buffer[i1] != '\0' && !random_shit_error; i1++) {
-				// first off... we need to ignore comment lines!
-				if (std::strncmp(buf, "//", 2) == 0) {
-					commentline = true;
-					i1++;
-					buf = buf + 1;
-				}
-				if (buffer[i1] == '\n')
-					commentline = false;
-				if (commentline == false) {
-					// need to check for section definition (on_...)
-					if (std::strncmp(buf, "on_start", 8) == 0) {
-						if (start > 0)
-							start = 99; // check for nested start defs
-						else
-							start = 1;
-						if (havestart > 0)
-							havestart = 99; // check for more than one on_start section
-						else
-							havestart = 1;
-						for (int j = 0; j < 8; j++) {
-							i1++;
-							buf = buf + 1;
-						} // try and move to end of on start
-					}
-					if (std::strncmp(buf, "on_msg", 6) == 0) {
-						if (msgsection > 0)
-							msgsection = 99; // check for nested msg defs
-						else
-							msgsection = 1;
-						for (int j = 0; j < 6; j++) {
-							i1++;
-							buf = buf + 1;
-						} // try and move to end of on_msg // now check input var!
-						if (buffer[i1] != '(')
-							msgsection = 99;
-						// make sure it starts wif a (
-						else {
-							i1++;
-							buf = buf + 1;
-							if (buffer[i1] == ')')
-								msgsection = 99; // make sure message isnt empty
-							else {              // if it isn't empty, move to end (ignore msg)
-								while (buffer[i1] != ')') {
-									i1++;
-									buf = buf + 1;
-								}
-							}
-						}
-					} // attack
-					else if (std::strncmp(buf, "blue_attack", 11) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 11; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[0] = 90;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "red_attack", 10) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 10; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[1] = 90;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "yellow_attack", 13) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 13; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[3] = 90;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "green_attack", 12) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 12; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[3] = 90;
-						} // move to end
-					}    // defend
-					else if (std::strncmp(buf, "blue_defend", 11) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 11; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[0] = 15;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "red_defend", 10) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 10; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[1] = 15;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "yellow_defend", 13) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 13; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[2] = 15;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "green_defend", 12) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 12; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[3] = 15;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "blue_normal", 11) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 11; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[0] = 50;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "red_normal", 10) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 10; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[1] = 50;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "yellow_normal", 13) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 13; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[2] = 50;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "green_normal", 12) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 12; j++) {
-							i1++;
-							buf = buf + 1;
-							RoleStatus[3] = 50;
-						} // move to end
-					}    // point<n> available_only (exclusive)
-					else if (std::strncmp(buf, "blue_available_only_point", 25) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 25; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "red_available_only_point", 24) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 24; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "green_available_only_point", 26) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 26; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "yellow_available_only_point", 27) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 27; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}    // point<n> available (set to true)
-					else if (std::strncmp(buf, "blue_available_point", 20) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 20; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "red_available_point", 19) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 19; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "green_available_point", 21) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 21; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "yellow_available_point", 22) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 22; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}    // point<n> not_available (set to false)
-					else if (std::strncmp(buf, "blue_notavailable_point", 23) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 23; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "red_notavailable_point", 22) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 22; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "green_notavailable_point", 24) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 24; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "yellow_notavailable_point", 25) == 0) {
-						// this can only be in a section
-						if (start == 0 && msgsection == 0)
-							random_shit_error = true;
-						for (int j = 0; j < 25; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}    // is point<n> available?
-					else if (std::strncmp(buf, "if_blue_point", 13) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 13; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "if_red_point", 12) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 12; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "if_green_point", 14) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 14; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "if_yellow_point", 15) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 15; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}    // is point<n> NOT available?
-					else if (std::strncmp(buf, "ifn_blue_point", 14) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 14; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "ifn_red_point", 13) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 13; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "ifn_green_point", 15) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 15; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}
-					else if (std::strncmp(buf, "ifn_yellow_point", 16) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						for (int j = 0; j < 16; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
-							random_shit_error = true;
-						else {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-					}    // multipoint ifs
-					else if (std::strncmp(buf, "if_blue_mpoint", 14) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						int j;
-						for (j = 0; j < 14; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						// check for 8 if vals
-						for (j = 0; j < 8; j++) {
-							if (buffer[i1] != '1' && buffer[i1] != '0')
-								random_shit_error = true;
-							else {
-								i1++;
-								buf = buf + 1;
-							} // move to end
-						}
-					}
-					else if (std::strncmp(buf, "if_red_mpoint", 13) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						int j;
-						for (j = 0; j < 13; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						// check for 8 if vals
-						for (j = 0; j < 8; j++) {
-							if (buffer[i1] != '1' && buffer[i1] != '0')
-								random_shit_error = true;
-							else {
-								i1++;
-								buf = buf + 1;
-							} // move to end
-						}
-					}
-					else if (std::strncmp(buf, "if_green_mpoint", 15) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						int j;
-						for (j = 0; j < 15; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						// check for 8 if vals
-						for (j = 0; j < 8; j++) {
-							if (buffer[i1] != '1' && buffer[i1] != '0')
-								random_shit_error = true;
-							else {
-								i1++;
-								buf = buf + 1;
-							} // move to end
-						}
-					}
-					else if (std::strncmp(buf, "if_yellow_mpoint", 16) == 0) {
-						// this can only be in a section
-						if (msgsection == 0)
-							random_shit_error = true;
-						if (ifsec > 0)
-							ifsec = 99; // check for nested if defs
-						else
-							ifsec = 1;
-						int j;
-						for (j = 0; j < 16; j++) {
-							i1++;
-							buf = buf + 1;
-						} // move to end
-						// check for 8 if vals
-						for (j = 0; j < 8; j++) {
-							if (buffer[i1] != '1' && buffer[i1] != '0')
-								random_shit_error = true;
-							else {
-								i1++;
-								buf = buf + 1;
-							} // move to end
-						}
-					} // end of multipoint ifs
-					else if (buffer[i1] != '/' && buffer[i1] != '{' && buffer[i1] != '}' && buffer[i1] != ' ' && buffer[i1] != '\n') {
-						random_shit_error = true;
-						ALERT(at_console, "\\/\\/\\/\\/\\/\\/\n");
-						ALERT(at_console, buf);
-						ALERT(at_console, "\n");
-					} // do your magic lexical analysis here. first braces
-					switch (buffer[i1]) {
-					case '{':
-						braces++;
-						if (start == 1)
-							start = 2;
-						else if (start > 0)
-							start = 99;
-						if (ifsec == 1)
-							ifsec = 2;
-						else if (ifsec > 0)
-							ifsec = 99;
-						if (msgsection == 1)
-							msgsection = 2;
-						else if (msgsection > 0 && ifsec == 0)
-							msgsection = 99;
-						break;
-					case '}':
-						braces--;
-						if (start == 2)
-							start = 0;
-						if (msgsection == 2 && ifsec == 0)
-							msgsection = 0;
-						if (ifsec == 2)
-							ifsec = 0; // cancel ifs before ending message section
-						break;
-					default:;
-					}
-				}
-				if (!random_shit_error)
-					buf = buf + 1; // like i++ but for stringcmp stuff
-			}
-			bool syntax_error;
-			syntax_error = false;
-			if (braces != 0) {
-				ALERT(at_console, "Syntax error, wrong number of braces\n");
-				syntax_error = true;
-			}
-			if (start != 0) {
-				ALERT(at_console, "Syntax error, on_start error\n");
-				syntax_error = true;
-			}
-			if (msgsection != 0) {
-				ALERT(at_console, "Syntax error, on_msg error\n");
-				syntax_error = true;
-			}
-			if (ifsec != 0) {
-				ALERT(at_console, "Syntax error, if error\n");
-				syntax_error = true;
-			}
-			if (havestart > 1) {
-				ALERT(at_console, "Syntax error, more than 1 on_start\n");
-				syntax_error = true;
-			}
-			if (random_shit_error) {
-				ALERT(at_console, "Syntax error, unrecognised command\n");
-				syntax_error = true;
 
-				std::FILE* fp = UTIL_OpenFoxbotLog();
-				if (fp != nullptr) {
-					std::fprintf(fp, "Syntax error, unrecognised command\n%s\n", buf);
-					std::fclose(fp);
+		auto luaLoadResult = BotScriptLua::TryLoad();
+
+		if (luaLoadResult == BotScriptLuaLoadResult::SUCCESS) {
+			script_type = ScriptType::LUA;
+		} else {
+	        script_type = ScriptType::ORIGINAL;
+
+			std::strcpy(mapname, STRING(gpGlobals->mapname));
+			std::strcat(mapname, "_fb.cfg");
+			UTIL_BuildFileName(filename, 255, "scripts", mapname);
+			std::FILE* bfp = std::fopen(filename, "r");
+			if (bfp != nullptr && mod_id == TFC_DLL) {
+				script_loaded = true;
+				char msg[293];
+				snprintf(msg, sizeof(msg),"\nExecuting FoXBot TFC script file:%s\n\n", filename);
+				ALERT(at_console, msg);
+				int ch = fgetc(bfp);
+				int i1; // Not wanted? [APG]RoboCop[CL]
+				char buffer[14097];
+				for (i1 = 0; i1 < 14096 && std::feof(bfp) == 0; i1++) {
+					buffer[i1] = static_cast<char>(ch);
+					if (buffer[i1] == '\t')
+						buffer[i1] = ' ';
+					ch = fgetc(bfp);
 				}
-			} // warnings
-			if (havestart == 0)
-				ALERT(at_console, "Warning, no on_start section\n");
-			// after all the lexical stuff, if we dont have any errors, pass the text into the command data types for use
-			if (syntax_error == false) {
-				script_parsed = true;
-				ALERT(at_console, "Passing data to behaviour arrays\n\n");
-				braces = 0;          // check for an even number of braces i.e. {..}
-				commentline = false; // used to ignore comment lines
-				start = 0;           // used to check if were in a start section or not
-				havestart = 0;
-				msgsection = 0; // used to check if were in a message section section or not
-				ifsec = 0;      // used to check if were in an if statement
-				buf = buffer;
-				random_shit_error = false;
-				int pnt = 0;
-				char msgtext[64];
-				int cnt;
-				int current_msg;
-				current_msg = -1;
-				for (i1 = 0; i1 < 14096 && buffer[i1] != '\0'; i1++) {
-					// first off.. need to ignore comment lines!
+				buffer[i1] = '\0';        // we've read it into buffer, now we need to check the syntax..
+				int braces = 0;           // check for an even number of braces i.e. {..}
+				bool commentline = false; // used to ignore comment lines
+				int start = 0;            // used to check if were in a start section or not
+				int havestart = 0;
+				int msgsection = 0; // used to check if were in a message section section or not
+				int ifsec = 0;      // used to check if were in an if statement
+				char* buf = buffer;
+				bool random_shit_error = false;
+				for (i1 = 0; i1 < 14096 && buffer[i1] != '\0' && !random_shit_error; i1++) {
+					// first off... we need to ignore comment lines!
 					if (std::strncmp(buf, "//", 2) == 0) {
 						commentline = true;
 						i1++;
@@ -3822,7 +3151,6 @@ void StartFrame() { // v7 last frame timing
 							} // try and move to end of on start
 						}
 						if (std::strncmp(buf, "on_msg", 6) == 0) {
-							current_msg++;
 							if (msgsection > 0)
 								msgsection = 99; // check for nested msg defs
 							else
@@ -3830,7 +3158,7 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 6; j++) {
 								i1++;
 								buf = buf + 1;
-							} // try and move to end of on_msg, now check input var!
+							} // try and move to end of on_msg // now check input var!
 							if (buffer[i1] != '(')
 								msgsection = 99;
 							// make sure it starts wif a (
@@ -3838,29 +3166,12 @@ void StartFrame() { // v7 last frame timing
 								i1++;
 								buf = buf + 1;
 								if (buffer[i1] == ')')
-									msgsection = 99;
-								// make sure message isnt empty
-								else {
-									cnt = 0;
-									// if it isn't empty, move to end (ignore msg)
+									msgsection = 99; // make sure message isnt empty
+								else {              // if it isn't empty, move to end (ignore msg)
 									while (buffer[i1] != ')') {
-										msgtext[cnt] = buffer[i1];
-										cnt++;
 										i1++;
 										buf = buf + 1;
 									}
-									msgtext[cnt] = '\0'; // terminate string
-									std::strcpy(msg_msg[current_msg], msgtext);
-									// now we have the message, we should probably clear out, all the available data
-									for (int i2 = 0; i2 < 8; i2++) {
-										msg_com[current_msg].blue_av[i2] = -1;
-										msg_com[current_msg].red_av[i2] = -1;
-										msg_com[current_msg].yellow_av[i2] = -1;
-										msg_com[current_msg].green_av[i2] = -1;
-									}
-									// clear the next pointer to stop it craching out.
-									msg_com[current_msg].next = nullptr;
-									curr = &msg_com[current_msg];
 								}
 							}
 						} // attack
@@ -3871,8 +3182,8 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 11; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[0] = 90;
 							} // move to end
-							attack[0] = true;
 						}
 						else if (std::strncmp(buf, "red_attack", 10) == 0) {
 							// this can only be in a section
@@ -3881,18 +3192,8 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 10; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[1] = 90;
 							} // move to end
-							attack[1] = true;
-						}
-						else if (std::strncmp(buf, "green_attack", 12) == 0) {
-							// this can only be in a section
-							if (start == 0 && msgsection == 0)
-								random_shit_error = true;
-							for (int j = 0; j < 12; j++) {
-								i1++;
-								buf = buf + 1;
-							} // move to end
-							attack[2] = true;
 						}
 						else if (std::strncmp(buf, "yellow_attack", 13) == 0) {
 							// this can only be in a section
@@ -3901,9 +3202,19 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 13; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[3] = 90;
 							} // move to end
-							attack[3] = true;
-						} // defend
+						}
+						else if (std::strncmp(buf, "green_attack", 12) == 0) {
+							// this can only be in a section
+							if (start == 0 && msgsection == 0)
+								random_shit_error = true;
+							for (int j = 0; j < 12; j++) {
+								i1++;
+								buf = buf + 1;
+								RoleStatus[3] = 90;
+							} // move to end
+						}    // defend
 						else if (std::strncmp(buf, "blue_defend", 11) == 0) {
 							// this can only be in a section
 							if (start == 0 && msgsection == 0)
@@ -3911,8 +3222,8 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 11; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[0] = 15;
 							} // move to end
-							defend[0] = true;
 						}
 						else if (std::strncmp(buf, "red_defend", 10) == 0) {
 							// this can only be in a section
@@ -3921,18 +3232,8 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 10; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[1] = 15;
 							} // move to end
-							defend[1] = true;
-						}
-						else if (std::strncmp(buf, "green_defend", 12) == 0) {
-							// this can only be in a section
-							if (start == 0 && msgsection == 0)
-								random_shit_error = true;
-							for (int j = 0; j < 12; j++) {
-								i1++;
-								buf = buf + 1;
-							} // move to end
-							defend[2] = true;
 						}
 						else if (std::strncmp(buf, "yellow_defend", 13) == 0) {
 							// this can only be in a section
@@ -3941,9 +3242,19 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 13; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[2] = 15;
 							} // move to end
-							defend[3] = true;
-						} // normal (defend+attack)?? // not used yet..
+						}
+						else if (std::strncmp(buf, "green_defend", 12) == 0) {
+							// this can only be in a section
+							if (start == 0 && msgsection == 0)
+								random_shit_error = true;
+							for (int j = 0; j < 12; j++) {
+								i1++;
+								buf = buf + 1;
+								RoleStatus[3] = 15;
+							} // move to end
+						}
 						else if (std::strncmp(buf, "blue_normal", 11) == 0) {
 							// this can only be in a section
 							if (start == 0 && msgsection == 0)
@@ -3951,6 +3262,7 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 11; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[0] = 50;
 							} // move to end
 						}
 						else if (std::strncmp(buf, "red_normal", 10) == 0) {
@@ -3960,15 +3272,7 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 10; j++) {
 								i1++;
 								buf = buf + 1;
-							} // move to end
-						}
-						else if (std::strncmp(buf, "green_normal", 12) == 0) {
-							// this can only be in a section
-							if (start == 0 && msgsection == 0)
-								random_shit_error = true;
-							for (int j = 0; j < 12; j++) {
-								i1++;
-								buf = buf + 1;
+								RoleStatus[1] = 50;
 							} // move to end
 						}
 						else if (std::strncmp(buf, "yellow_normal", 13) == 0) {
@@ -3978,6 +3282,17 @@ void StartFrame() { // v7 last frame timing
 							for (int j = 0; j < 13; j++) {
 								i1++;
 								buf = buf + 1;
+								RoleStatus[2] = 50;
+							} // move to end
+						}
+						else if (std::strncmp(buf, "green_normal", 12) == 0) {
+							// this can only be in a section
+							if (start == 0 && msgsection == 0)
+								random_shit_error = true;
+							for (int j = 0; j < 12; j++) {
+								i1++;
+								buf = buf + 1;
+								RoleStatus[3] = 50;
 							} // move to end
 						}    // point<n> available_only (exclusive)
 						else if (std::strncmp(buf, "blue_available_only_point", 25) == 0) {
@@ -3991,29 +3306,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								for (bool &j : blue_av) {
-									j = false;
-								}
-								blue_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								for (int &j : msg_com[current_msg].blue_av) {
-									j = 0; // false
-								}
-								msg_com[current_msg].blue_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								for (int &j : curr->blue_av) {
-									j = 0; // false
-								}
-								curr->blue_av[pnt] = 1; // true
-							}
 						}
 						else if (std::strncmp(buf, "red_available_only_point", 24) == 0) {
 							// this can only be in a section
@@ -4026,29 +3321,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								for (bool &j : red_av) {
-									j = false;
-								}
-								red_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								for (int &j : msg_com[current_msg].red_av) {
-									j = 0; // false
-								}
-								msg_com[current_msg].red_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								for (int &j : curr->red_av) {
-									j = 0; // false
-								}
-								curr->red_av[pnt] = 1; // true
-							}
 						}
 						else if (std::strncmp(buf, "green_available_only_point", 26) == 0) {
 							// this can only be in a section
@@ -4061,29 +3336,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								for (bool &j : green_av) {
-									j = false;
-								}
-								green_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								for (int &j : msg_com[current_msg].green_av) {
-									j = 0; // false
-								}
-								msg_com[current_msg].green_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								for (int &j : curr->green_av) {
-									j = 0; // false
-								}
-								curr->green_av[pnt] = 1; // true
-							}
 						}
 						else if (std::strncmp(buf, "yellow_available_only_point", 27) == 0) {
 							// this can only be in a section
@@ -4096,30 +3351,10 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								for (bool &j : yellow_av) {
-									j = false;
-								}
-								yellow_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								for (int &j : msg_com[current_msg].yellow_av) {
-									j = 0; // false
-								}
-								msg_com[current_msg].yellow_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								for (int &j : curr->yellow_av) {
-									j = 0; // false
-								}
-								curr->yellow_av[pnt] = 1; // true
-							}
-						} // point<n> available (set to true)
+						}    // point<n> available (set to true)
 						else if (std::strncmp(buf, "blue_available_point", 20) == 0) {
 							// this can only be in a section
 							if (start == 0 && msgsection == 0)
@@ -4131,20 +3366,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								blue_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].blue_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->blue_av[pnt] = 1; // true
-							}
 						}
 						else if (std::strncmp(buf, "red_available_point", 19) == 0) {
 							// this can only be in a section
@@ -4157,20 +3381,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								red_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].red_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->red_av[pnt] = 1; // true
-							}
 						}
 						else if (std::strncmp(buf, "green_available_point", 21) == 0) {
 							// this can only be in a section
@@ -4183,20 +3396,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								green_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].green_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->green_av[pnt] = 1; // true
-							}
 						}
 						else if (std::strncmp(buf, "yellow_available_point", 22) == 0) {
 							// this can only be in a section
@@ -4209,21 +3411,10 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								yellow_av[pnt] = true;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].yellow_av[pnt] = 1; // true
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->yellow_av[pnt] = 1; // true
-							}
-						} // point<n> not_available (set to false)
+						}    // point<n> not_available (set to false)
 						else if (std::strncmp(buf, "blue_notavailable_point", 23) == 0) {
 							// this can only be in a section
 							if (start == 0 && msgsection == 0)
@@ -4235,20 +3426,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								blue_av[pnt] = false;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].blue_av[pnt] = 0; // false
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->blue_av[pnt] = 0; // false
-							}
 						}
 						else if (std::strncmp(buf, "red_notavailable_point", 22) == 0) {
 							// this can only be in a section
@@ -4261,20 +3441,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								red_av[pnt] = false;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].red_av[pnt] = 0; // false
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->red_av[pnt] = 0; // false
-							}
 						}
 						else if (std::strncmp(buf, "green_notavailable_point", 24) == 0) {
 							// this can only be in a section
@@ -4287,20 +3456,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								green_av[pnt] = false;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].green_av[pnt] = 0; // false
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->green_av[pnt] = 0; // false
-							}
 						}
 						else if (std::strncmp(buf, "yellow_notavailable_point", 25) == 0) {
 							// this can only be in a section
@@ -4313,21 +3471,10 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
-								pnt--;
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							if (start == 2) {
-								yellow_av[pnt] = false;
-							}
-							if (msgsection == 2 && ifsec == 0) {
-								msg_com[current_msg].yellow_av[pnt] = 0; // false
-							}
-							if (msgsection == 2 && ifsec == 2) {
-								curr->yellow_av[pnt] = 0; // false
-							}
-						} // is point<n> availabe?
+						}    // is point<n> available?
 						else if (std::strncmp(buf, "if_blue_point", 13) == 0) {
 							// this can only be in a section
 							if (msgsection == 0)
@@ -4343,23 +3490,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer..
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "b_p_%d", pnt);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "if_red_point", 12) == 0) {
 							// this can only be in a section
@@ -4376,23 +3509,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer..
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "r_p_%d", pnt);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "if_green_point", 14) == 0) {
 							// this can only be in a section
@@ -4409,23 +3528,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer..
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "g_p_%d", pnt);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "if_yellow_point", 15) == 0) {
 							// this can only be in a section
@@ -4442,24 +3547,10 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer..
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "y_p_%d", pnt);
-							std::strcpy(curr->ifs, msg);
-						} // is point<n> NOT availabe?
+						}    // is point<n> NOT available?
 						else if (std::strncmp(buf, "ifn_blue_point", 14) == 0) {
 							// this can only be in a section
 							if (msgsection == 0)
@@ -4475,24 +3566,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next;
-							// clear next pointer..
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "b_pn_%d", pnt);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "ifn_red_point", 13) == 0) {
 							// this can only be in a section
@@ -4509,23 +3585,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "r_pn_%d", pnt);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "ifn_green_point", 15) == 0) {
 							// this can only be in a section
@@ -4542,23 +3604,9 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "g_pn_%d", pnt);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "ifn_yellow_point", 16) == 0) {
 							// this can only be in a section
@@ -4575,25 +3623,10 @@ void StartFrame() { // v7 last frame timing
 							if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
 								random_shit_error = true;
 							else {
-								pnt = std::atoi(&buffer[i1]); // get the var
 								i1++;
 								buf = buf + 1;
 							} // move to end
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							snprintf(msg, sizeof(msg), "y_pn_%d", pnt);
-							std::strcpy(curr->ifs, msg);
-						}
-						// multipoint ifs
+						}    // multipoint ifs
 						else if (std::strncmp(buf, "if_blue_mpoint", 14) == 0) {
 							// this can only be in a section
 							if (msgsection == 0)
@@ -4606,31 +3639,16 @@ void StartFrame() { // v7 last frame timing
 							for (j = 0; j < 14; j++) {
 								i1++;
 								buf = buf + 1;
-							} // move to end  // check for 8 if vals
-							char pnts[9];
+							} // move to end
+							// check for 8 if vals
 							for (j = 0; j < 8; j++) {
 								if (buffer[i1] != '1' && buffer[i1] != '0')
 									random_shit_error = true;
 								else {
-									pnts[j] = buffer[i1];
 									i1++;
 									buf = buf + 1;
 								} // move to end
 							}
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							pnts[8] = '\0';
-							snprintf(msg, sizeof(msg), "b_mp_%s", pnts);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "if_red_mpoint", 13) == 0) {
 							// this can only be in a section
@@ -4644,31 +3662,16 @@ void StartFrame() { // v7 last frame timing
 							for (j = 0; j < 13; j++) {
 								i1++;
 								buf = buf + 1;
-							} // move to end  // check for 8 if vals
-							char pnts[9];
+							} // move to end
+							// check for 8 if vals
 							for (j = 0; j < 8; j++) {
 								if (buffer[i1] != '1' && buffer[i1] != '0')
 									random_shit_error = true;
 								else {
-									pnts[j] = buffer[i1];
 									i1++;
 									buf = buf + 1;
 								} // move to end
 							}
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							pnts[8] = '\0';
-							snprintf(msg, sizeof(msg), "r_mp_%s", pnts);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "if_green_mpoint", 15) == 0) {
 							// this can only be in a section
@@ -4682,31 +3685,16 @@ void StartFrame() { // v7 last frame timing
 							for (j = 0; j < 15; j++) {
 								i1++;
 								buf = buf + 1;
-							} // move to end // check for 8 if vals
-							char pnts[9];
+							} // move to end
+							// check for 8 if vals
 							for (j = 0; j < 8; j++) {
 								if (buffer[i1] != '1' && buffer[i1] != '0')
 									random_shit_error = true;
 								else {
-									pnts[j] = buffer[i1];
 									i1++;
 									buf = buf + 1;
 								} // move to end
 							}
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							pnts[8] = '\0';
-							snprintf(msg, sizeof(msg), "g_mp_%s", pnts);
-							std::strcpy(curr->ifs, msg);
 						}
 						else if (std::strncmp(buf, "if_yellow_mpoint", 16) == 0) {
 							// this can only be in a section
@@ -4720,38 +3708,23 @@ void StartFrame() { // v7 last frame timing
 							for (j = 0; j < 16; j++) {
 								i1++;
 								buf = buf + 1;
-							} // move to end  // check for 8 if vals
-							char pnts[9];
+							} // move to end
+							// check for 8 if vals
 							for (j = 0; j < 8; j++) {
 								if (buffer[i1] != '1' && buffer[i1] != '0')
 									random_shit_error = true;
 								else {
-									pnts[j] = buffer[i1];
 									i1++;
 									buf = buf + 1;
 								} // move to end
 							}
-							while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
-								curr = curr->next; // get to null
-							curr->next = new msg_com_struct;
-							curr = curr->next; // clear next pointer...
-							curr->next = nullptr;
-							for (int i2 = 0; i2 < 8; i2++) {
-								curr->blue_av[i2] = -1;
-								curr->red_av[i2] = -1;
-								curr->yellow_av[i2] = -1;
-								curr->green_av[i2] = -1;
-							}
-							pnts[8] = '\0';
-							snprintf(msg, sizeof(msg), "y_mp_%s", pnts);
-							std::strcpy(curr->ifs, msg);
 						} // end of multipoint ifs
-						else if (buffer[i1] != '/' && buffer[i1] != '{' && buffer[i1] != '}' && buffer[i1] != ' ' && buffer[i1] != '\n' && random_shit_error == false) {
+						else if (buffer[i1] != '/' && buffer[i1] != '{' && buffer[i1] != '}' && buffer[i1] != ' ' && buffer[i1] != '\n') {
 							random_shit_error = true;
 							ALERT(at_console, "\\/\\/\\/\\/\\/\\/\n");
 							ALERT(at_console, buf);
 							ALERT(at_console, "\n");
-						} // do your magic lexical analysis here.. // first braces
+						} // do your magic lexical analysis here. first braces
 						switch (buffer[i1]) {
 						case '{':
 							braces++;
@@ -4759,7 +3732,6 @@ void StartFrame() { // v7 last frame timing
 								start = 2;
 							else if (start > 0)
 								start = 99;
-							// need to check that more braces aernt put in than nesesarry i.e. start=2 then generate error, cus only have variable setting in start section
 							if (ifsec == 1)
 								ifsec = 2;
 							else if (ifsec > 0)
@@ -4773,24 +3745,1064 @@ void StartFrame() { // v7 last frame timing
 							braces--;
 							if (start == 2)
 								start = 0;
-							if (ifsec == 2)
-								ifsec = 0;
-							if (msgsection == 2)
+							if (msgsection == 2 && ifsec == 0)
 								msgsection = 0;
+							if (ifsec == 2)
+								ifsec = 0; // cancel ifs before ending message section
 							break;
 						default:;
 						}
 					}
-					buf = buf + 1; // like i++ but for stringcmp stuff
+					if (!random_shit_error)
+						buf = buf + 1; // like i++ but for stringcmp stuff
+				}
+				bool syntax_error;
+				syntax_error = false;
+				if (braces != 0) {
+					ALERT(at_console, "Syntax error, wrong number of braces\n");
+					syntax_error = true;
+				}
+				if (start != 0) {
+					ALERT(at_console, "Syntax error, on_start error\n");
+					syntax_error = true;
+				}
+				if (msgsection != 0) {
+					ALERT(at_console, "Syntax error, on_msg error\n");
+					syntax_error = true;
+				}
+				if (ifsec != 0) {
+					ALERT(at_console, "Syntax error, if error\n");
+					syntax_error = true;
+				}
+				if (havestart > 1) {
+					ALERT(at_console, "Syntax error, more than 1 on_start\n");
+					syntax_error = true;
+				}
+				if (random_shit_error) {
+					ALERT(at_console, "Syntax error, unrecognised command\n");
+					syntax_error = true;
+
+					std::FILE* fp = UTIL_OpenFoxbotLog();
+					if (fp != nullptr) {
+						std::fprintf(fp, "Syntax error, unrecognised command\n%s\n", buf);
+						std::fclose(fp);
+					}
+				} // warnings
+				if (havestart == 0)
+					ALERT(at_console, "Warning, no on_start section\n");
+				// after all the lexical stuff, if we dont have any errors, pass the text into the command data types for use
+				if (syntax_error == false) {
+					script_parsed = true;
+					ALERT(at_console, "Passing data to behaviour arrays\n\n");
+					braces = 0;          // check for an even number of braces i.e. {..}
+					commentline = false; // used to ignore comment lines
+					start = 0;           // used to check if were in a start section or not
+					havestart = 0;
+					msgsection = 0; // used to check if were in a message section section or not
+					ifsec = 0;      // used to check if were in an if statement
+					buf = buffer;
+					random_shit_error = false;
+					int pnt = 0;
+					char msgtext[64];
+					int cnt;
+					int current_msg;
+					current_msg = -1;
+					for (i1 = 0; i1 < 14096 && buffer[i1] != '\0'; i1++) {
+						// first off.. need to ignore comment lines!
+						if (std::strncmp(buf, "//", 2) == 0) {
+							commentline = true;
+							i1++;
+							buf = buf + 1;
+						}
+						if (buffer[i1] == '\n')
+							commentline = false;
+						if (commentline == false) {
+							// need to check for section definition (on_...)
+							if (std::strncmp(buf, "on_start", 8) == 0) {
+								if (start > 0)
+									start = 99; // check for nested start defs
+								else
+									start = 1;
+								if (havestart > 0)
+									havestart = 99; // check for more than one on_start section
+								else
+									havestart = 1;
+								for (int j = 0; j < 8; j++) {
+									i1++;
+									buf = buf + 1;
+								} // try and move to end of on start
+							}
+							if (std::strncmp(buf, "on_msg", 6) == 0) {
+								current_msg++;
+								if (msgsection > 0)
+									msgsection = 99; // check for nested msg defs
+								else
+									msgsection = 1;
+								for (int j = 0; j < 6; j++) {
+									i1++;
+									buf = buf + 1;
+								} // try and move to end of on_msg, now check input var!
+								if (buffer[i1] != '(')
+									msgsection = 99;
+								// make sure it starts wif a (
+								else {
+									i1++;
+									buf = buf + 1;
+									if (buffer[i1] == ')')
+										msgsection = 99;
+									// make sure message isnt empty
+									else {
+										cnt = 0;
+										// if it isn't empty, move to end (ignore msg)
+										while (buffer[i1] != ')') {
+											msgtext[cnt] = buffer[i1];
+											cnt++;
+											i1++;
+											buf = buf + 1;
+										}
+										msgtext[cnt] = '\0'; // terminate string
+										std::strcpy(msg_msg[current_msg], msgtext);
+										// now we have the message, we should probably clear out, all the available data
+										for (int i2 = 0; i2 < 8; i2++) {
+											msg_com[current_msg].blue_av[i2] = -1;
+											msg_com[current_msg].red_av[i2] = -1;
+											msg_com[current_msg].yellow_av[i2] = -1;
+											msg_com[current_msg].green_av[i2] = -1;
+										}
+										// clear the next pointer to stop it craching out.
+										msg_com[current_msg].next = nullptr;
+										curr = &msg_com[current_msg];
+									}
+								}
+							} // attack
+							else if (std::strncmp(buf, "blue_attack", 11) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 11; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								attack[0] = true;
+							}
+							else if (std::strncmp(buf, "red_attack", 10) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 10; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								attack[1] = true;
+							}
+							else if (std::strncmp(buf, "green_attack", 12) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 12; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								attack[2] = true;
+							}
+							else if (std::strncmp(buf, "yellow_attack", 13) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 13; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								attack[3] = true;
+							} // defend
+							else if (std::strncmp(buf, "blue_defend", 11) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 11; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								defend[0] = true;
+							}
+							else if (std::strncmp(buf, "red_defend", 10) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 10; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								defend[1] = true;
+							}
+							else if (std::strncmp(buf, "green_defend", 12) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 12; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								defend[2] = true;
+							}
+							else if (std::strncmp(buf, "yellow_defend", 13) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 13; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								defend[3] = true;
+							} // normal (defend+attack)?? // not used yet..
+							else if (std::strncmp(buf, "blue_normal", 11) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 11; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+							}
+							else if (std::strncmp(buf, "red_normal", 10) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 10; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+							}
+							else if (std::strncmp(buf, "green_normal", 12) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 12; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+							}
+							else if (std::strncmp(buf, "yellow_normal", 13) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 13; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+							}    // point<n> available_only (exclusive)
+							else if (std::strncmp(buf, "blue_available_only_point", 25) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 25; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									for (bool &j : blue_av) {
+										j = false;
+									}
+									blue_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									for (int &j : msg_com[current_msg].blue_av) {
+										j = 0; // false
+									}
+									msg_com[current_msg].blue_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									for (int &j : curr->blue_av) {
+										j = 0; // false
+									}
+									curr->blue_av[pnt] = 1; // true
+								}
+							}
+							else if (std::strncmp(buf, "red_available_only_point", 24) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 24; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									for (bool &j : red_av) {
+										j = false;
+									}
+									red_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									for (int &j : msg_com[current_msg].red_av) {
+										j = 0; // false
+									}
+									msg_com[current_msg].red_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									for (int &j : curr->red_av) {
+										j = 0; // false
+									}
+									curr->red_av[pnt] = 1; // true
+								}
+							}
+							else if (std::strncmp(buf, "green_available_only_point", 26) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 26; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									for (bool &j : green_av) {
+										j = false;
+									}
+									green_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									for (int &j : msg_com[current_msg].green_av) {
+										j = 0; // false
+									}
+									msg_com[current_msg].green_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									for (int &j : curr->green_av) {
+										j = 0; // false
+									}
+									curr->green_av[pnt] = 1; // true
+								}
+							}
+							else if (std::strncmp(buf, "yellow_available_only_point", 27) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 27; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									for (bool &j : yellow_av) {
+										j = false;
+									}
+									yellow_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									for (int &j : msg_com[current_msg].yellow_av) {
+										j = 0; // false
+									}
+									msg_com[current_msg].yellow_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									for (int &j : curr->yellow_av) {
+										j = 0; // false
+									}
+									curr->yellow_av[pnt] = 1; // true
+								}
+							} // point<n> available (set to true)
+							else if (std::strncmp(buf, "blue_available_point", 20) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 20; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									blue_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].blue_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->blue_av[pnt] = 1; // true
+								}
+							}
+							else if (std::strncmp(buf, "red_available_point", 19) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 19; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									red_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].red_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->red_av[pnt] = 1; // true
+								}
+							}
+							else if (std::strncmp(buf, "green_available_point", 21) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 21; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									green_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].green_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->green_av[pnt] = 1; // true
+								}
+							}
+							else if (std::strncmp(buf, "yellow_available_point", 22) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 22; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									yellow_av[pnt] = true;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].yellow_av[pnt] = 1; // true
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->yellow_av[pnt] = 1; // true
+								}
+							} // point<n> not_available (set to false)
+							else if (std::strncmp(buf, "blue_notavailable_point", 23) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 23; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									blue_av[pnt] = false;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].blue_av[pnt] = 0; // false
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->blue_av[pnt] = 0; // false
+								}
+							}
+							else if (std::strncmp(buf, "red_notavailable_point", 22) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 22; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									red_av[pnt] = false;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].red_av[pnt] = 0; // false
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->red_av[pnt] = 0; // false
+								}
+							}
+							else if (std::strncmp(buf, "green_notavailable_point", 24) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 24; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									green_av[pnt] = false;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].green_av[pnt] = 0; // false
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->green_av[pnt] = 0; // false
+								}
+							}
+							else if (std::strncmp(buf, "yellow_notavailable_point", 25) == 0) {
+								// this can only be in a section
+								if (start == 0 && msgsection == 0)
+									random_shit_error = true;
+								for (int j = 0; j < 25; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									pnt--;
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (start == 2) {
+									yellow_av[pnt] = false;
+								}
+								if (msgsection == 2 && ifsec == 0) {
+									msg_com[current_msg].yellow_av[pnt] = 0; // false
+								}
+								if (msgsection == 2 && ifsec == 2) {
+									curr->yellow_av[pnt] = 0; // false
+								}
+							} // is point<n> availabe?
+							else if (std::strncmp(buf, "if_blue_point", 13) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 13; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer..
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "b_p_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "if_red_point", 12) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 12; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer..
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "r_p_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "if_green_point", 14) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 14; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer..
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "g_p_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "if_yellow_point", 15) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 15; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer..
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "y_p_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							} // is point<n> NOT availabe?
+							else if (std::strncmp(buf, "ifn_blue_point", 14) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 14; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next;
+								// clear next pointer..
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "b_pn_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "ifn_red_point", 13) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 13; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "r_pn_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "ifn_green_point", 15) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 15; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "g_pn_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "ifn_yellow_point", 16) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								for (int j = 0; j < 16; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								if (buffer[i1] != '1' && buffer[i1] != '2' && buffer[i1] != '3' && buffer[i1] != '4' && buffer[i1] != '5' && buffer[i1] != '6' && buffer[i1] != '7' && buffer[i1] != '8')
+									random_shit_error = true;
+								else {
+									pnt = std::atoi(&buffer[i1]); // get the var
+									i1++;
+									buf = buf + 1;
+								} // move to end
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								snprintf(msg, sizeof(msg), "y_pn_%d", pnt);
+								std::strcpy(curr->ifs, msg);
+							}
+							// multipoint ifs
+							else if (std::strncmp(buf, "if_blue_mpoint", 14) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								int j;
+								for (j = 0; j < 14; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end  // check for 8 if vals
+								char pnts[9];
+								for (j = 0; j < 8; j++) {
+									if (buffer[i1] != '1' && buffer[i1] != '0')
+										random_shit_error = true;
+									else {
+										pnts[j] = buffer[i1];
+										i1++;
+										buf = buf + 1;
+									} // move to end
+								}
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								pnts[8] = '\0';
+								snprintf(msg, sizeof(msg), "b_mp_%s", pnts);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "if_red_mpoint", 13) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								int j;
+								for (j = 0; j < 13; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end  // check for 8 if vals
+								char pnts[9];
+								for (j = 0; j < 8; j++) {
+									if (buffer[i1] != '1' && buffer[i1] != '0')
+										random_shit_error = true;
+									else {
+										pnts[j] = buffer[i1];
+										i1++;
+										buf = buf + 1;
+									} // move to end
+								}
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								pnts[8] = '\0';
+								snprintf(msg, sizeof(msg), "r_mp_%s", pnts);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "if_green_mpoint", 15) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								int j;
+								for (j = 0; j < 15; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end // check for 8 if vals
+								char pnts[9];
+								for (j = 0; j < 8; j++) {
+									if (buffer[i1] != '1' && buffer[i1] != '0')
+										random_shit_error = true;
+									else {
+										pnts[j] = buffer[i1];
+										i1++;
+										buf = buf + 1;
+									} // move to end
+								}
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								pnts[8] = '\0';
+								snprintf(msg, sizeof(msg), "g_mp_%s", pnts);
+								std::strcpy(curr->ifs, msg);
+							}
+							else if (std::strncmp(buf, "if_yellow_mpoint", 16) == 0) {
+								// this can only be in a section
+								if (msgsection == 0)
+									random_shit_error = true;
+								if (ifsec > 0)
+									ifsec = 99; // check for nested if defs
+								else
+									ifsec = 1;
+								int j;
+								for (j = 0; j < 16; j++) {
+									i1++;
+									buf = buf + 1;
+								} // move to end  // check for 8 if vals
+								char pnts[9];
+								for (j = 0; j < 8; j++) {
+									if (buffer[i1] != '1' && buffer[i1] != '0')
+										random_shit_error = true;
+									else {
+										pnts[j] = buffer[i1];
+										i1++;
+										buf = buf + 1;
+									} // move to end
+								}
+								while (curr->next != nullptr && reinterpret_cast<int>(curr->next) != -1)
+									curr = curr->next; // get to null
+								curr->next = new msg_com_struct;
+								curr = curr->next; // clear next pointer...
+								curr->next = nullptr;
+								for (int i2 = 0; i2 < 8; i2++) {
+									curr->blue_av[i2] = -1;
+									curr->red_av[i2] = -1;
+									curr->yellow_av[i2] = -1;
+									curr->green_av[i2] = -1;
+								}
+								pnts[8] = '\0';
+								snprintf(msg, sizeof(msg), "y_mp_%s", pnts);
+								std::strcpy(curr->ifs, msg);
+							} // end of multipoint ifs
+							else if (buffer[i1] != '/' && buffer[i1] != '{' && buffer[i1] != '}' && buffer[i1] != ' ' && buffer[i1] != '\n' && random_shit_error == false) {
+								random_shit_error = true;
+								ALERT(at_console, "\\/\\/\\/\\/\\/\\/\n");
+								ALERT(at_console, buf);
+								ALERT(at_console, "\n");
+							} // do your magic lexical analysis here.. // first braces
+							switch (buffer[i1]) {
+							case '{':
+								braces++;
+								if (start == 1)
+									start = 2;
+								else if (start > 0)
+									start = 99;
+								// need to check that more braces aernt put in than nesesarry i.e. start=2 then generate error, cus only have variable setting in start section
+								if (ifsec == 1)
+									ifsec = 2;
+								else if (ifsec > 0)
+									ifsec = 99;
+								if (msgsection == 1)
+									msgsection = 2;
+								else if (msgsection > 0 && ifsec == 0)
+									msgsection = 99;
+								break;
+							case '}':
+								braces--;
+								if (start == 2)
+									start = 0;
+								if (ifsec == 2)
+									ifsec = 0;
+								if (msgsection == 2)
+									msgsection = 0;
+								break;
+							default:;
+							}
+						}
+						buf = buf + 1; // like i++ but for stringcmp stuff
+					}
+				}
+				else {
+					ALERT(at_console, "\nScript will not be used until there are no syntax errors\n\n");
 				}
 			}
-			else {
-				ALERT(at_console, "\nScript will not be used until there are no syntax errors\n\n");
+			if (bfp != nullptr) {
+				std::fclose(bfp);
+				bfp = nullptr;
 			}
-		}
-		if (bfp != nullptr) {
-			std::fclose(bfp);
-			bfp = nullptr;
 		}
 	}
 	if (!mr_meta)
