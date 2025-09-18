@@ -1,3 +1,16 @@
+# Foxbot-JP
+This repo contains a version of Foxbot modified by me. [Here you can find the original version](https://github.com/APGRoboCop/foxbot)
+
+My changes are focused more on functionalities, utilities, waypointing and QOL. I'm not that good at modifying the core AI / Pathfinding.
+
+## What's different? (so far)
+
+* **Lua waypoint scripts**: Added support for lua scripts as alternative to the normal waypoint scripts.
+
+
+## Original Readme.txt
+
+```
 ===================================
    Foxbot Source code Readme
 ===================================
@@ -144,7 +157,7 @@ ____________________________________________________________
 
 Foxbot was built using Botmans HPB Bot source code as a basis.
 So you might also find the HPB Bot source code and readme.txt file useful.
-
+```
 Also you might want to check out the Bots-United website at:
 www.bots-united.com
 It's a site geared towards bot development.
