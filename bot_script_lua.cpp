@@ -42,7 +42,7 @@ static int l_OnMsg(lua_State *L) {
 static int l_SetPoint(lua_State *L) {
    int id = luaL_checkinteger(L, 1);
    int teams = luaL_checkinteger(L, 2);
-   bool enabled = luaL_checkinteger(L, 3) >= 1;
+   bool enabled = lua_toboolean(L, 3);
 
    if (id < 1 || id > 8) {
       return luaL_error(L, "SetPoint: id must be between 1 and 8 (got %d)", id);
@@ -68,7 +68,32 @@ static int l_SetPoint(lua_State *L) {
    return 0;
 }
 
+static int l_IsPoint(lua_State *L) {
+   int id = luaL_checkinteger(L, 1);
+   int teams = luaL_checkinteger(L, 2);
+   bool enabled = lua_toboolean(L, 3);
+
+   if (id < 1 || id > 8) {
+      return luaL_error(L, "IsPoint: id must be between 1 and 8 (got %d)", id);
+   }
+
+   id -= 1;
+
+   if ((teams & BLUE && blue_av[id] != enabled) || (teams & RED && red_av[id] != enabled) || (teams & GREEN && green_av[id] != enabled) || (teams & YELLOW && yellow_av[id] != enabled)) {
+      lua_pushboolean(L, 0);
+      return 1;
+   }
+
+   lua_pushboolean(L, 1);
+   return 1;
+}
+
 BotScriptLuaLoadResult BotScriptLua::TryLoad() {
+   if (lua != nullptr) {
+      lua_close(lua);
+      lua = nullptr;
+   }
+
    msg_handlers.clear();
 
    char mapname[64];
@@ -94,6 +119,9 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    lua_pushcfunction(lua, l_SetPoint);
    lua_setglobal(lua, "SetPoint");
 
+   lua_pushcfunction(lua, l_IsPoint);
+   lua_setglobal(lua, "IsPoint");
+
    lua_pushinteger(lua, 1 << 0);
    lua_setglobal(lua, "Blue");
    lua_pushinteger(lua, 1 << 1);
@@ -103,9 +131,9 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    lua_pushinteger(lua, 1 << 3);
    lua_setglobal(lua, "Green");
 
-   lua_pushinteger(lua, 1);
+   lua_pushboolean(lua, 1);
    lua_setglobal(lua, "Available");
-   lua_pushinteger(lua, 0);
+   lua_pushboolean(lua, 0);
    lua_setglobal(lua, "NotAvailable");
 
    int status = luaL_loadfile(lua, filename);
