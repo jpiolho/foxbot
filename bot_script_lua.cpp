@@ -88,31 +88,47 @@ static int l_IsPoint(lua_State *L) {
    return 1;
 }
 
-
-static void lua_includeSafeLibs(lua_State* L) {
+static void lua_includeSafeLibs(lua_State *L) {
    // _G (base)
-   luaL_requiref(L, LUA_GNAME, luaopen_base, 1); lua_pop(L, 1);
+   luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
+   lua_pop(L, 1);
 
    // Strip dynamic loaders/eval from _G
    lua_getglobal(L, "_G");
-   lua_pushnil(L); lua_setfield(L, -2, "dofile");
-   lua_pushnil(L); lua_setfield(L, -2, "loadfile");
-   lua_pushnil(L); lua_setfield(L, -2, "load");
+   lua_pushnil(L);
+   lua_setfield(L, -2, "dofile");
+   lua_pushnil(L);
+   lua_setfield(L, -2, "loadfile");
+   lua_pushnil(L);
+   lua_setfield(L, -2, "load");
    lua_pop(L, 1);
 
-   luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1); lua_pop(L, 1);
-   luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1); lua_pop(L, 1);
-   luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1); lua_pop(L, 1);
-   luaL_requiref(L, LUA_UTF8LIBNAME, luaopen_utf8, 1); lua_pop(L, 1);
-   luaL_requiref(L, LUA_COLIBNAME, luaopen_coroutine, 1); lua_pop(L, 1);
+   // Include only specific libraries
+   luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1);
+   lua_pop(L, 1);
+   luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
+   lua_pop(L, 1);
+   luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
+   lua_pop(L, 1);
+   luaL_requiref(L, LUA_UTF8LIBNAME, luaopen_utf8, 1);
+   lua_pop(L, 1);
+   luaL_requiref(L, LUA_COLIBNAME, luaopen_coroutine, 1);
+   lua_pop(L, 1);
+}
+
+void BotScriptLua::TerminateLua() {
+   // Already terminated?
+   if (lua == nullptr)
+      return;
+
+   lua_close(lua);
+   lua = nullptr;
 }
 
 BotScriptLuaLoadResult BotScriptLua::TryLoad() {
-   if (lua != nullptr) {
-      lua_close(lua);
-      lua = nullptr;
-   }
+   TerminateLua();
 
+   // Clear previous registered OnMsg handlers
    msg_handlers.clear();
 
    char mapname[64];
@@ -122,7 +138,7 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    char filename[256];
    UTIL_BuildFileName(filename, 255, "scripts", mapname);
 
-   // Quick check to see if file exists
+   // Quick check to see if file exists, this way we don't have to start the Lua state
    std::FILE *check = std::fopen(filename, "r");
    if (check == nullptr) {
       return BotScriptLuaLoadResult::NOT_PRESENT;
@@ -132,22 +148,31 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    lua = luaL_newstate();
    lua_includeSafeLibs(lua);
 
-   lua_pushcfunction(lua, l_OnMsg); lua_setglobal(lua, "OnMsg");
-   lua_pushcfunction(lua, l_SetPoint); lua_setglobal(lua, "SetPoint");
-   lua_pushcfunction(lua, l_IsPoint); lua_setglobal(lua, "IsPoint");
+   lua_pushcfunction(lua, l_OnMsg);
+   lua_setglobal(lua, "OnMsg");
+   lua_pushcfunction(lua, l_SetPoint);
+   lua_setglobal(lua, "SetPoint");
+   lua_pushcfunction(lua, l_IsPoint);
+   lua_setglobal(lua, "IsPoint");
 
-   lua_pushinteger(lua, 1 << 0); lua_setglobal(lua, "Blue");
-   lua_pushinteger(lua, 1 << 1); lua_setglobal(lua, "Red");
-   lua_pushinteger(lua, 1 << 2); lua_setglobal(lua, "Yellow");
-   lua_pushinteger(lua, 1 << 3); lua_setglobal(lua, "Green");
+   lua_pushinteger(lua, 1 << 0);
+   lua_setglobal(lua, "Blue");
+   lua_pushinteger(lua, 1 << 1);
+   lua_setglobal(lua, "Red");
+   lua_pushinteger(lua, 1 << 2);
+   lua_setglobal(lua, "Yellow");
+   lua_pushinteger(lua, 1 << 3);
+   lua_setglobal(lua, "Green");
 
-   lua_pushboolean(lua, 1); lua_setglobal(lua, "Available");
-   lua_pushboolean(lua, 0); lua_setglobal(lua, "NotAvailable");
+   lua_pushboolean(lua, 1);
+   lua_setglobal(lua, "Available");
+   lua_pushboolean(lua, 0);
+   lua_setglobal(lua, "NotAvailable");
 
-   int status = luaL_loadfilex(lua, filename, "t");
+   int status = luaL_loadfilex(lua, filename, "t"); // "t" only allows text-mode scripts
    if (status != LUA_OK) {
       const char *error = lua_tostring(lua, -1);
-      ALERT(at_console, "Failed to load lua script file, even though it exists! Error: %s", error);
+      ALERT(at_console, "\\/\\/\\/\\/\\/\\/\nFailed to load lua script file, even though it exists! Error: %s", error);
 
       lua_pop(lua, 1);
       lua_close(lua);
@@ -158,7 +183,7 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    status = lua_pcall(lua, 0, LUA_MULTRET, 0);
    if (status != LUA_OK) {
       const char *error = lua_tostring(lua, -1);
-      ALERT(at_console, "Failed to load lua script: %s\n", error);
+      ALERT(at_console, "\\/\\/\\/\\/\\/\\/\nFailed to load lua script. Error: %s\n", error);
 
       lua_pop(lua, 1);
       lua_close(lua);
@@ -166,13 +191,11 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
       return BotScriptLuaLoadResult::FAILED;
    }
 
+   ALERT(at_console, "Lua script loaded successfully\n");
    return BotScriptLuaLoadResult::SUCCESS;
 }
 
 void BotScriptLua::OnMessage(const char *msg) {
-   if (lua == nullptr)
-      return;
-
    auto it = msg_handlers.find(msg);
    if (it == msg_handlers.end())
       return;
@@ -182,7 +205,7 @@ void BotScriptLua::OnMessage(const char *msg) {
       lua_rawgeti(lua, LUA_REGISTRYINDEX, ref);
       if (lua_pcall(lua, 0, 0, 0) != LUA_OK) {
          const char *error = lua_tostring(lua, -1);
-         ALERT(at_console, "Lua error in handler for '%s': %s\n", msg, error);
+         ALERT(at_console, "\\/\\/\\/\\/\\/\\/\nLua script error in handler for '%s'. Error: %s\n", msg, error);
          lua_pop(lua, 1);
       }
    }
