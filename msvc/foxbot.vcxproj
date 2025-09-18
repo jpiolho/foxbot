@@ -207,6 +207,7 @@
     <ClCompile Include="..\bot_job_functions.cpp" />
     <ClCompile Include="..\bot_job_think.cpp" />
     <ClCompile Include="..\bot_navigate.cpp" />
+    <ClCompile Include="..\bot_script_lua.cpp" />
     <ClCompile Include="..\bot_start.cpp" />
     <ClCompile Include="..\dll.cpp" />
     <ClCompile Include="..\engine.cpp" />
@@ -227,9 +228,11 @@
     <ClInclude Include="..\bot_job_functions.h" />
     <ClInclude Include="..\bot_job_think.h" />
     <ClInclude Include="..\bot_navigate.h" />
+    <ClInclude Include="..\bot_script_lua.h" />
     <ClInclude Include="..\bot_weapons.h" />
     <ClInclude Include="..\engine.h" />
     <ClInclude Include="..\list.h" />
+    <ClInclude Include="..\minilua.h" />
     <ClInclude Include="..\tf_defs.h" />
     <ClInclude Include="..\version.h" />
     <ClInclude Include="..\vers_fox.h" />

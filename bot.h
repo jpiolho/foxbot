@@ -207,6 +207,12 @@ struct msg_com_struct {
 	msg_com_struct* next;
 };
 
+enum ScriptType
+{
+	ORIGINAL,
+	LUA
+};
+
 typedef struct {
 	int iId;    // weapon ID
 	int iClip;  // amount of ammo in the clip
