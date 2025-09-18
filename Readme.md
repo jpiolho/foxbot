@@ -5,7 +5,7 @@ My changes are focused more on functionalities, utilities, waypointing and QOL. 
 
 ## What's different? (so far)
 
-* **Lua waypoint scripts**: Added support for lua scripts as alternative to the normal waypoint scripts.
+* [**Lua waypoint scripts**](https://github.com/jpiolho/foxbot/wiki/Lua-waypoint-scripts): Added support for lua scripts as alternative to the normal waypoint scripts.
 
 
 ## Original Readme.txt
