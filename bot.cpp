@@ -33,6 +33,8 @@
 
 #include "list.h"
 
+#include "dll_global.h"
+
 #include "bot.h"
 #include "waypoint.h"
 
@@ -1111,6 +1113,11 @@ void BotFindItem(bot_t* pBot) {
                   if (pent->v.effects & EF_NODRAW) {
                      continue;
                   }
+
+				  // Ignore if they're not meant for the bot team
+				  auto extraInfo = GetEntityExtraInfo(ENTINDEX(pent));
+				  if (extraInfo != nullptr && extraInfo->team_no != pBot->bot_team)
+					  continue;
 
                   // medics have no bashing weapon so make sure they have ammo for this
                   if (pEdict->v.playerclass == TFC_CLASS_MEDIC && pBot->ammoStatus == AMMO_LOW) {

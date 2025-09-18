@@ -121,5 +121,8 @@
     <ClInclude Include="..\tf_defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\dll_global.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

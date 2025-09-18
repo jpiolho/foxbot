@@ -48,6 +48,9 @@
 
 #include "bot_script_lua.h"
 
+#include <unordered_map>
+#include "dll_global.h"
+
 constexpr unsigned char VER_MAJOR = 1;
 constexpr unsigned char VER_MINOR = 0;
 
@@ -166,15 +169,24 @@ float is_team_play = 0.0f;
 bool checked_teamplay = false;
 // char team_names[MAX_TEAMS][MAX_TEAMNAME_LENGTH];
 int num_teams = 0;
-edict_t* pent_info_tfdetect = nullptr;
-edict_t* pent_info_ctfdetect = nullptr;
-edict_t* pent_item_tfgoal = nullptr;
 int max_team_players[4];
 int team_class_limits[4];
 int team_allies[4]; // bit mapped allies BLUE, RED, YELLOW, and GREEN
 int max_teams = 0;
 FLAG_S flags[MAX_FLAGS];
 int num_flags = 0;
+
+std::unordered_map<int, ENTITY_EXTRA_INFO_S> entity_extra_info;
+
+enum class EntityClass {
+	Unknown,
+	info_tfdetect,
+	item_tfgoal,
+	info_player_teamspawn,
+	info_tf_teamcheck,
+	i_p_t,
+	func_breakable
+};
 
 static std::FILE* bot_cfg_fp = nullptr;
 // changed..cus we set it else where
@@ -842,9 +854,7 @@ int DispatchSpawn(edict_t* pent) {
 			// my clear var for lev reload..
 			std::strcpy(prevmapname, "null");
 
-			pent_info_tfdetect = nullptr;
-			pent_info_ctfdetect = nullptr;
-			pent_item_tfgoal = nullptr;
+			entity_extra_info.clear();
 
 			for (int index = 0; index < MAX_TEAMS; index++) {
 				max_team_players[index] = 0;  // no player limit
@@ -1165,81 +1175,133 @@ void DispatchThink(edict_t* pent) {
 		SET_META_RESULT(MRES_HANDLED);
 }
 
-void DispatchKeyValue(edict_t* pentKeyvalue, KeyValueData* pkvd) {
-	if (mod_id == TFC_DLL) {
-		static int flag_index;
-		static edict_t* temp_pent;
-		if (pentKeyvalue == pent_info_tfdetect) {
-			if (std::strcmp(pkvd->szKeyName, "ammo_medikit") == 0) // max BLUE players
-				max_team_players[0] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "ammo_detpack") == 0) // max RED players
-				max_team_players[1] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_medikit") == 0) // max YELLOW players
-				max_team_players[2] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_detpack") == 0) // max GREEN players
-				max_team_players[3] = std::atoi(pkvd->szValue);
+EntityClass ClassnameToEntityClass(const char* s) {
+   if (std::strcmp(s, "info_tfdetect") == 0)
+      return EntityClass::info_tfdetect;
 
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_shells") == 0) // BLUE class limits
-				team_class_limits[0] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_nails") == 0) // RED class limits
-				team_class_limits[1] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_rockets") == 0) // YELLOW class limits
-				team_class_limits[2] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_cells") == 0) // GREEN class limits
-				team_class_limits[3] = std::atoi(pkvd->szValue);
+   if (std::strcmp(s, "item_tfgoal") == 0)
+      return EntityClass::item_tfgoal;
 
-			else if (std::strcmp(pkvd->szKeyName, "team1_allies") == 0) // BLUE allies
-				team_allies[0] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "team2_allies") == 0) // RED allies
-				team_allies[1] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "team3_allies") == 0) // YELLOW allies
-				team_allies[2] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "team4_allies") == 0) // GREEN allies
-				team_allies[3] = std::atoi(pkvd->szValue);
-		}
-		else if (pent_info_tfdetect == nullptr) {
-			if (std::strcmp(pkvd->szKeyName, "classname") == 0 && std::strcmp(pkvd->szValue, "info_tfdetect") == 0) {
-				pent_info_tfdetect = pentKeyvalue;
-			}
-		}
+   if (std::strcmp(s, "info_player_teamspawn") == 0)
+      return EntityClass::info_player_teamspawn;
 
-		if (pentKeyvalue == pent_item_tfgoal) {
-			if (std::strcmp(pkvd->szKeyName, "team_no") == 0)
-				flags[flag_index].team_no = std::atoi(pkvd->szValue);
+   if (std::strcmp(s, "info_tf_teamcheck") == 0)
+      return EntityClass::info_tf_teamcheck;
 
-			if (std::strcmp(pkvd->szKeyName, "mdl") == 0 && (std::strcmp(pkvd->szValue, "models/flag.mdl") == 0 || std::strcmp(pkvd->szValue, "models/keycard.mdl") == 0 || std::strcmp(pkvd->szValue, "models/ball.mdl") == 0)) {
-				flags[flag_index].mdl_match = true;
-				num_flags++;
-			}
-		}
-		else if (pent_item_tfgoal == nullptr) {
-			if (std::strcmp(pkvd->szKeyName, "classname") == 0 && std::strcmp(pkvd->szValue, "item_tfgoal") == 0) {
-				if (num_flags < MAX_FLAGS) {
-					pent_item_tfgoal = pentKeyvalue;
+   if (std::strcmp(s, "i_p_t") == 0)
+      return EntityClass::i_p_t;
 
-					flags[num_flags].mdl_match = false;
-					flags[num_flags].team_no = 0; // any team unless specified
-					flags[num_flags].edict = pentKeyvalue;
+   if (std::strcmp(s, "func_breakable") == 0)
+	   return EntityClass::func_breakable;
+}
 
-					flag_index = num_flags; // in case the mdl comes before team_no
-				}
-			}
-		}
-		else
-			pent_item_tfgoal = nullptr; // reset for non-flag item_tfgoal's
+ENTITY_EXTRA_INFO_S *GetEntityExtraInfo(int idx)
+{
+   auto it = entity_extra_info.find(idx);
+   if (it == entity_extra_info.end())
+      return nullptr;
 
-		if (std::strcmp(pkvd->szKeyName, "classname") == 0 && (std::strcmp(pkvd->szValue, "info_player_teamspawn") == 0 || std::strcmp(pkvd->szValue, "info_tf_teamcheck") == 0 || std::strcmp(pkvd->szValue, "i_p_t") == 0)) {
-			temp_pent = pentKeyvalue;
-		}
-		else if (pentKeyvalue == temp_pent) {
-			if (std::strcmp(pkvd->szKeyName, "team_no") == 0) {
-				const int value = std::atoi(pkvd->szValue);
+   return &it->second;
+}
 
-				is_team[value - 1] = true;
+ENTITY_EXTRA_INFO_S *GetOrAddEntityExtraInfo(int idx)
+{
+   auto info = GetEntityExtraInfo(idx);
+   if (info != nullptr) {
+      return info;
+   }
+
+   auto [it, inserted] = entity_extra_info.emplace(idx, ENTITY_EXTRA_INFO_S{});
+   return &it->second;
+}
+
+void DispatchKeyValue_Internal(edict_t* pentKeyvalue, const KeyValueData* pkvd)
+{
+   if (mod_id != TFC_DLL)
+      return;
+
+    static edict_t *entity = nullptr;
+    static EntityClass entityClass = EntityClass::Unknown;
+    static int flag_index;
+
+    if (std::strcmp(pkvd->szKeyName, "classname") == 0) {
+        entity = pentKeyvalue;
+        entityClass = ClassnameToEntityClass(pkvd->szValue);
+
+        if (entityClass == EntityClass::item_tfgoal) {
+        if (num_flags < MAX_FLAGS) {
+            flags[num_flags].mdl_match = false;
+            flags[num_flags].team_no = 0; // any team unless specified
+            flags[num_flags].edict = pentKeyvalue;
+
+            flag_index = num_flags; // in case the mdl comes before team_no
+        } else {
+            flag_index = -1;
+        }
+        }
+    } else if (pentKeyvalue == entity) {
+        switch (entityClass) {
+        case EntityClass::info_tfdetect:
+        if (std::strcmp(pkvd->szKeyName, "ammo_medikit") == 0) // max BLUE players
+            max_team_players[0] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "ammo_detpack") == 0) // max RED players
+            max_team_players[1] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "maxammo_medikit") == 0) // max YELLOW players
+            max_team_players[2] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "maxammo_detpack") == 0) // max GREEN players
+            max_team_players[3] = std::atoi(pkvd->szValue);
+
+        else if (std::strcmp(pkvd->szKeyName, "maxammo_shells") == 0) // BLUE class limits
+            team_class_limits[0] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "maxammo_nails") == 0) // RED class limits
+            team_class_limits[1] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "maxammo_rockets") == 0) // YELLOW class limits
+            team_class_limits[2] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "maxammo_cells") == 0) // GREEN class limits
+            team_class_limits[3] = std::atoi(pkvd->szValue);
+
+        else if (std::strcmp(pkvd->szKeyName, "team1_allies") == 0) // BLUE allies
+            team_allies[0] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "team2_allies") == 0) // RED allies
+            team_allies[1] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "team3_allies") == 0) // YELLOW allies
+            team_allies[2] = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "team4_allies") == 0) // GREEN allies
+            team_allies[3] = std::atoi(pkvd->szValue);
+
+        break;
+
+        case EntityClass::item_tfgoal:
+        if (std::strcmp(pkvd->szKeyName, "team_no") == 0)
+            flags[flag_index].team_no = std::atoi(pkvd->szValue);
+        else if (std::strcmp(pkvd->szKeyName, "mdl") == 0 && (std::strcmp(pkvd->szValue, "models/flag.mdl") == 0 || std::strcmp(pkvd->szValue, "models/keycard.mdl") == 0 || std::strcmp(pkvd->szValue, "models/ball.mdl") == 0)) {
+            flags[flag_index].mdl_match = true;
+            num_flags++;
+        }
+        break;
+
+        case EntityClass::info_player_teamspawn:
+        case EntityClass::info_tf_teamcheck:
+        case EntityClass::i_p_t:
+        if (std::strcmp(pkvd->szKeyName, "team_no") == 0) {
+            const int value = std::atoi(pkvd->szValue);
+
+            is_team[value - 1] = true;
             max_teams = std::max(value, max_teams);
-         }
-		}
-	}
+        }
+        break;
+
+        case EntityClass::func_breakable:
+        if (std::strcmp(pkvd->szKeyName, "team_no") == 0) {
+            GetOrAddEntityExtraInfo(ENTINDEX(entity))->team_no = std::atoi(pkvd->szValue);
+        }
+        break;
+        }
+    }
+}
+
+void DispatchKeyValue(edict_t* pentKeyvalue, KeyValueData* pkvd) {
+	DispatchKeyValue_Internal(pentKeyvalue, pkvd);
 
 	if (!mr_meta)
 		(*other_gFunctionTable.pfnKeyValue)(pentKeyvalue, pkvd);
@@ -5026,83 +5088,9 @@ void DispatchKeyValue_Post(edict_t* pentKeyvalue, const KeyValueData* pkvd) {
 	// fp=UTIL_OpenFoxbotLog(); std::fprintf(fp, "DispatchKeyValue: %x %s=%s\n",pentKeyvalue,pkvd->szKeyName,pkvd->szValue);
 	// std::fclose(fp);
 
-	if (mod_id == TFC_DLL) {
-		static int flag_index;
-		static edict_t* temp_pent;
-		if (pentKeyvalue == pent_info_tfdetect) {
-			if (std::strcmp(pkvd->szKeyName, "ammo_medikit") == 0) // max BLUE players
-				max_team_players[0] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "ammo_detpack") == 0) // max RED players
-				max_team_players[1] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_medikit") == 0) // max YELLOW players
-				max_team_players[2] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_detpack") == 0) // max GREEN players
-				max_team_players[3] = std::atoi(pkvd->szValue);
+	
+	DispatchKeyValue_Internal(pentKeyvalue, pkvd);
 
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_shells") == 0) // BLUE class limits
-				team_class_limits[0] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_nails") == 0) // RED class limits
-				team_class_limits[1] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_rockets") == 0) // YELLOW class limits
-				team_class_limits[2] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "maxammo_cells") == 0) // GREEN class limits
-				team_class_limits[3] = std::atoi(pkvd->szValue);
-
-			else if (std::strcmp(pkvd->szKeyName, "team1_allies") == 0) // BLUE allies
-				team_allies[0] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "team2_allies") == 0) // RED allies
-				team_allies[1] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "team3_allies") == 0) // YELLOW allies
-				team_allies[2] = std::atoi(pkvd->szValue);
-			else if (std::strcmp(pkvd->szKeyName, "team4_allies") == 0) // GREEN allies
-				team_allies[3] = std::atoi(pkvd->szValue);
-		}
-		else if (pent_info_tfdetect == nullptr) {
-			if (std::strcmp(pkvd->szKeyName, "classname") == 0 && std::strcmp(pkvd->szValue, "info_tfdetect") == 0) {
-				pent_info_tfdetect = pentKeyvalue;
-			}
-		}
-
-		if (pentKeyvalue == pent_item_tfgoal) {
-			if (std::strcmp(pkvd->szKeyName, "team_no") == 0)
-				flags[flag_index].team_no = std::atoi(pkvd->szValue);
-
-			if (std::strcmp(pkvd->szKeyName, "mdl") == 0 && (std::strcmp(pkvd->szValue, "models/flag.mdl") == 0 || std::strcmp(pkvd->szValue, "models/keycard.mdl") == 0 || std::strcmp(pkvd->szValue, "models/ball.mdl") == 0)) {
-				flags[flag_index].mdl_match = true;
-				num_flags++;
-			}
-		}
-		else if (pent_item_tfgoal == nullptr) {
-			if (std::strcmp(pkvd->szKeyName, "classname") == 0 && std::strcmp(pkvd->szValue, "item_tfgoal") == 0) {
-				if (num_flags < MAX_FLAGS) {
-					pent_item_tfgoal = pentKeyvalue;
-
-					flags[num_flags].mdl_match = false;
-					flags[num_flags].team_no = 0; // any team unless specified
-					flags[num_flags].edict = pentKeyvalue;
-
-					// in case the mdl comes before team_no
-					flag_index = num_flags;
-				}
-			}
-		}
-		else {
-			pent_item_tfgoal = nullptr; // reset for non-flag item_tfgoal's
-		}
-
-		if (std::strcmp(pkvd->szKeyName, "classname") == 0 && (std::strcmp(pkvd->szValue, "info_player_teamspawn") == 0 || std::strcmp(pkvd->szValue, "info_tf_teamcheck") == 0 || std::strcmp(pkvd->szValue, "i_p_t") == 0)) {
-			temp_pent = pentKeyvalue;
-		}
-		else if (pentKeyvalue == temp_pent) {
-			if (std::strcmp(pkvd->szKeyName, "team_no") == 0) {
-				// int value = std::atoi(pkvd->szValue);
-
-				// is_team[value-1]=true;
-				// if(value > max_teams)
-				// max_teams = value;
-			}
-		}
-	}
 	SET_META_RESULT(MRES_HANDLED);
 }
 
