@@ -88,6 +88,25 @@ static int l_IsPoint(lua_State *L) {
    return 1;
 }
 
+
+static void lua_includeSafeLibs(lua_State* L) {
+   // _G (base)
+   luaL_requiref(L, LUA_GNAME, luaopen_base, 1); lua_pop(L, 1);
+
+   // Strip dynamic loaders/eval from _G
+   lua_getglobal(L, "_G");
+   lua_pushnil(L); lua_setfield(L, -2, "dofile");
+   lua_pushnil(L); lua_setfield(L, -2, "loadfile");
+   lua_pushnil(L); lua_setfield(L, -2, "load");
+   lua_pop(L, 1);
+
+   luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1); lua_pop(L, 1);
+   luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1); lua_pop(L, 1);
+   luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1); lua_pop(L, 1);
+   luaL_requiref(L, LUA_UTF8LIBNAME, luaopen_utf8, 1); lua_pop(L, 1);
+   luaL_requiref(L, LUA_COLIBNAME, luaopen_coroutine, 1); lua_pop(L, 1);
+}
+
 BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    if (lua != nullptr) {
       lua_close(lua);
@@ -111,32 +130,21 @@ BotScriptLuaLoadResult BotScriptLua::TryLoad() {
    fclose(check);
 
    lua = luaL_newstate();
-   luaL_openlibs(lua);
+   lua_includeSafeLibs(lua);
 
-   lua_pushcfunction(lua, l_OnMsg);
-   lua_setglobal(lua, "OnMsg");
+   lua_pushcfunction(lua, l_OnMsg); lua_setglobal(lua, "OnMsg");
+   lua_pushcfunction(lua, l_SetPoint); lua_setglobal(lua, "SetPoint");
+   lua_pushcfunction(lua, l_IsPoint); lua_setglobal(lua, "IsPoint");
 
-   lua_pushcfunction(lua, l_SetPoint);
-   lua_setglobal(lua, "SetPoint");
+   lua_pushinteger(lua, 1 << 0); lua_setglobal(lua, "Blue");
+   lua_pushinteger(lua, 1 << 1); lua_setglobal(lua, "Red");
+   lua_pushinteger(lua, 1 << 2); lua_setglobal(lua, "Yellow");
+   lua_pushinteger(lua, 1 << 3); lua_setglobal(lua, "Green");
 
-   lua_pushcfunction(lua, l_IsPoint);
-   lua_setglobal(lua, "IsPoint");
+   lua_pushboolean(lua, 1); lua_setglobal(lua, "Available");
+   lua_pushboolean(lua, 0); lua_setglobal(lua, "NotAvailable");
 
-   lua_pushinteger(lua, 1 << 0);
-   lua_setglobal(lua, "Blue");
-   lua_pushinteger(lua, 1 << 1);
-   lua_setglobal(lua, "Red");
-   lua_pushinteger(lua, 1 << 2);
-   lua_setglobal(lua, "Yellow");
-   lua_pushinteger(lua, 1 << 3);
-   lua_setglobal(lua, "Green");
-
-   lua_pushboolean(lua, 1);
-   lua_setglobal(lua, "Available");
-   lua_pushboolean(lua, 0);
-   lua_setglobal(lua, "NotAvailable");
-
-   int status = luaL_loadfile(lua, filename);
+   int status = luaL_loadfilex(lua, filename, "t");
    if (status != LUA_OK) {
       const char *error = lua_tostring(lua, -1);
       ALERT(at_console, "Failed to load lua script file, even though it exists! Error: %s", error);
