@@ -6,6 +6,8 @@ My changes are focused more on functionalities, utilities, waypointing and QOL. 
 ## What's different? (so far)
 
 * [**Lua waypoint scripts**](https://github.com/jpiolho/foxbot/wiki/Lua-waypoint-scripts): Added support for lua scripts as alternative to the normal waypoint scripts.
+* **Better backpack waypoint detection**: When placing a waypoint on a backpack, it'll know recognize if it contains health, armor or ammo.
+* **Team-specific Breakables**: Bots will now respect `func_breakable` team setting and not attempt to break something that's not assigned for their team.
 
 
 ## Original Readme.txt
