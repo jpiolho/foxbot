@@ -43,6 +43,7 @@
 
 #include "bot.h"
 #include "waypoint.h"
+#include "dll_global.h"
 
 // linked list class.
 #include "list.h"
@@ -1091,6 +1092,25 @@ void WaypointAdd(edict_t* pEntity) {
 		// *************
 		// LOOK FOR AMMO
 		// *************
+
+		auto extraInfo = GetEntityExtraInfo(ENTINDEX(pent));
+		if (extraInfo != nullptr && !extraInfo->is_flag)
+		{
+			if (extraInfo->provides_ammo) {
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "found entity that provides ammo!\n");
+				waypoints[index].flags |= W_FL_AMMO;
+			}
+
+			if (extraInfo->provides_armor) {
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "found entity that provides armor!\n");
+				waypoints[index].flags |= W_FL_ARMOR;
+			}
+
+			if (extraInfo->provides_health) {
+				ClientPrint(pEntity, HUD_PRINTCONSOLE, "found entity that provides health!\n");
+				waypoints[index].flags |= W_FL_HEALTH;
+			}
+		}
 	}
 
 	// draw a blue waypoint
