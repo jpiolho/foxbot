@@ -230,6 +230,7 @@
     <ClInclude Include="..\bot_navigate.h" />
     <ClInclude Include="..\bot_script_lua.h" />
     <ClInclude Include="..\bot_weapons.h" />
+    <ClInclude Include="..\dll_global.h" />
     <ClInclude Include="..\engine.h" />
     <ClInclude Include="..\list.h" />
     <ClInclude Include="..\minilua.h" />
